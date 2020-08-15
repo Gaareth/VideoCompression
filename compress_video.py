@@ -1,7 +1,5 @@
-from PIL import Image
 import os
 import ffmpy
-import cv2
 import glob
 import time
 import datetime
@@ -10,35 +8,8 @@ from tqdm import tqdm
 import subprocess
 import argparse
 
-from colorama import init, Fore, Back, Style
+from colorama import init, Fore, Style
 init(autoreset=True)
-
-def compress_video2(input_name):
-    file_type = os.path.splitext(input_name)[1]
-    output_name = input_name.split("." + file_type)[0] + "_compressed" + file_type
-    cap = cv2.VideoCapture(input_name)
-
-    while cap.isOpened():
-        ret, frame = cap.read()
-
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        im_pil = Image.fromarray(frame)
-        im_pil.save(output_name, optimize=True, quality=50)
-
-def compress_image(input_image):
-    img = Image.open(input_image)
-    original_size = os.path.getsize(input_image)
-    print(original_size)
-
-    file_type = os.path.splitext(input_image)[1]
-    output_name = input_image.split("." + file_type)[0] + "_compressed" + file_type
-    img.save(output_name, optimize=True, quality=50)
-
-    compressed_size = os.path.getsize(output_name)
-    print(compressed_size)
-
-    compression_rate = (compressed_size / original_size) * 100
-    print(f"Compression: {compression_rate:.2f}%")
 
 
 class VideoCompression:
@@ -60,13 +31,11 @@ class VideoCompression:
             setattr(self, prop, kwargs.get(prop, default))
         print("===============OPTIONS===============\n\n")
 
-
         self.g_t1 = time.time()
         self.start_size = 0
         self.compressed_directories = []
         self.videos_compressed = 0
         self.current_output_file = ""
-
 
     def compress_video(self, input_name, output_name):
         inp = {input_name: None}
@@ -99,12 +68,7 @@ class VideoCompression:
                 os.remove(self.current_output_file)
                 print(Fore.RED + f"> Removed unfinished filed: {self.current_output_file}")
             except FileNotFoundError:
-                #I'll Fuckin' Do It Again
-                if os.path.exists(self.current_output_file):
-                    os.remove(self.current_output_file)
-                    print(Fore.RED + f"> Removed unfinished filed: {self.current_output_file}")
-                else:
-                    print(Fore.RED + f"Someting went wrong while removing {self.current_output_file} Please remove the file manually")
+                print(Fore.RED + f"Someting went wrong while removing {self.current_output_file}. Please remove the file manually")
 
         # division by 0 bad
         if self.start_size != 0:
@@ -141,19 +105,19 @@ class VideoCompression:
 
         bar = tqdm(total=len(files))
 
-        for filename in files:
+        for i, filename in enumerate(files):
             file_type = os.path.splitext(filename)[1]
             output_name = filename.split(file_type)[0] + "_compressed" + file_type
 
             if file_type != ".mp4" or os.path.exists(output_name) or "compressed" in filename:
                 continue
 
-            file_size=os.path.getsize(filename)
+            file_size = os.path.getsize(filename)
             file_size_mb = (file_size/1000000)
 
-
             print("\n--------------------------------------------------------------")
-            print(f"> Compressing Video: {Style.BRIGHT + Fore.CYAN + filename} {Style.RESET_ALL}: {file_size_mb}mb : {self.convert_seconds(self.get_video_length(filename))}")
+            print(f"> Compressing Video: ({i+1}/{len(filename)}) {Style.BRIGHT + Fore.CYAN + filename} "
+                  f"{Style.RESET_ALL}: {file_size_mb}mb : {self.convert_seconds(self.get_video_length(filename))}")
             self.current_output_file = output_name
 
             t1 = time.time()
