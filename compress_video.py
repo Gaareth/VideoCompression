@@ -8,6 +8,8 @@ from tqdm import tqdm
 import subprocess
 import argparse
 
+import platform
+
 from colorama import init, Fore, Style
 init(autoreset=True)
 
@@ -87,7 +89,12 @@ class VideoCompression:
         return [filename for filename in glob.iglob(rootdir + '**/**', recursive=self.recursive) if os.path.splitext(filename)[1] == ".mp4" and "compressed" not in filename]
 
     def get_video_length(self, filename):
-        cmds = [os.path.join(self.ffmpeg_bin_path, "ffprobe.exe"), "-v", "error", "-show_entries",
+        if platform.system() == "Linux":
+            ffprobe_path = os.path.join(self.ffmpeg_bin_path, "ffprobe")
+        else:
+             ffprobe_path = os.path.join(self.ffmpeg_bin_path, "ffprobe.exe")
+        
+        cmds = [ffprobe_path, "-v", "error", "-show_entries",
                                  "format=duration", "-of",
                                  "default=noprint_wrappers=1:nokey=1", filename]
         result = subprocess.run(cmds, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
