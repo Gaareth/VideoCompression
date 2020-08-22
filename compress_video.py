@@ -26,12 +26,21 @@ class VideoCompression:
             "crf": 30,
             "vcodec": "libx264"  # Was faster than x265 on my machine
         }
+        
+       
+        if platform.system() == "Linux":
+            prop_defaults["ffmpeg_bin_path"] = "/usr/bin/"
 
         print("===============OPTIONS===============")
         for (prop, default) in prop_defaults.items():
-            print(f"{prop}: {kwargs.get(prop, default)}")
-            setattr(self, prop, kwargs.get(prop, default))
+            value = kwargs.get(prop, default) if kwargs.get(prop) != None else default
+            print(f"{prop}: {value}")
+            setattr(self, prop, value)
         print("===============OPTIONS===============\n\n")
+        
+        
+        #if platform.system() == "Linux":
+            #prop_defaults["ffmpeg_bin_path"] = "/usr/bin/"
 
         self.g_t1 = time.time()
         self.start_size = 0
@@ -51,7 +60,7 @@ class VideoCompression:
         ff.run()
 
         print(Fore.GREEN + Style.BRIGHT+'[!] Finished compressing Video [!]')
-
+   
     def printDebug(self, text):
         if self.debug:
             print(text)
@@ -174,7 +183,7 @@ if __name__ == "__main__":
     ap.add_argument("-r", "--recursive", default=True, type=str2bool,
                     help="Recursively load videos")
 
-    ap.add_argument("-ffmpeg","--ffmpeg_bin_path", default=r"C:\ffmpeg\bin", type=str,
+    ap.add_argument("-ffmpeg","--ffmpeg_bin_path", type=str,
                     help="Path containing ffmpeg binaries")
 
     ap.add_argument("-c", "--crf", default=30, type=int,
@@ -184,5 +193,6 @@ if __name__ == "__main__":
                     help="vcodec value for ffmpeg")
 
     args = vars(ap.parse_args())
+    print(args)
     vc = VideoCompression(**args)
     vc.compress_dir(args["folder"])
