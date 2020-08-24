@@ -120,20 +120,22 @@ class VideoCompression:
         print(f"> Loaded {Style.BRIGHT + Fore.CYAN }'{len(files)}' {Style.RESET_ALL}video files in {Style.BRIGHT + Fore.CYAN }{rootdir}")
 
         bar = tqdm(total=len(files))
-
-        for i, filename in enumerate(files):
+        i = 1
+        for filename in files:
             file_type = os.path.splitext(filename)[1]
             output_name = filename.split(file_type)[0] + "_compressed" + file_type
 
             if file_type != ".mp4" or os.path.exists(output_name) or "compressed" in filename:
                 continue
+            
+            i+=1
 
             file_size = os.path.getsize(filename)
             file_size_mb = (file_size/1000000)
 
             print("\n--------------------------------------------------------------")
-            print(f"> Compressing Video: ({i+1}/{len(filename)}) {Style.BRIGHT + Fore.CYAN + filename} "
-                  f"{Style.RESET_ALL}: {file_size_mb}mb : {self.convert_seconds(self.get_video_length(filename))}")
+            print(f"> Compressing Video: ({i+1}/{len(files)}) {Style.BRIGHT + Fore.CYAN + filename} "
+                    f"{Style.RESET_ALL}: {file_size_mb:.2f}mb : {self.convert_seconds(self.get_video_length(filename))}")
             self.current_output_file = output_name
 
             t1 = time.time()
