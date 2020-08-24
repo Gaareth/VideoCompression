@@ -1,5 +1,5 @@
 # VideoCompression
-Python script for easy bulk video compression with neat output
+Python script for easy bulk video compression with neat output using ffmpeg
 
 # Usage
 
