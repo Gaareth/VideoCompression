@@ -39,9 +39,6 @@ class VideoCompression:
             setattr(self, prop, value)
         print("===============OPTIONS===============\n\n")
         
-        
-        #if platform.system() == "Linux":
-            #prop_defaults["ffmpeg_bin_path"] = "/usr/bin/"
 
         self.g_t1 = time.time()
         self.start_size = 0
@@ -59,7 +56,7 @@ class VideoCompression:
 
         self.printDebug(f"> Running Command: {ff.cmd}")
         ff.run()
-
+        # TODO: tqdm bar
         print(Fore.GREEN + Style.BRIGHT+'[!] Finished compressing Video [!]')
    
     def printDebug(self, text):
@@ -84,12 +81,11 @@ class VideoCompression:
 
         # division by 0 bad
         if self.start_size != 0:
-            start_size_mb = self.start_size / 1000000
             end_size = sum([self.size_of_dir(dir) for dir in self.compressed_directories])
 
             total_compression_rate = (end_size / self.start_size) * 100
-            print(f"Reduced to: {Style.BRIGHT + Fore.CYAN}{total_compression_rate:.2f}%{Style.RESET_ALL} of original size | "
-                  f"[{start_size_mb}mb => {self.sizeof_fmt(end_size)}mb]")
+            print(f"Directory educed to: {Style.BRIGHT + Fore.CYAN}{total_compression_rate:.2f}%{Style.RESET_ALL} of original size | "
+                  f"[{self.sizeof_fmt(self.start_size)} => {self.sizeof_fmt(end_size)}]")
 
         print("Exit")
         print("--------------------------------------------------------------")
@@ -113,6 +109,7 @@ class VideoCompression:
         return sum([os.stat(filename).st_size for filename in [filename for filename in glob.iglob(rootdir + '**/**', recursive=self.recursive) if os.path.splitext(filename)[1] == ".mp4"]])
 
     def check_corrupted(self, output):
+        # maybe use ffmpeg in the future but now the time is not worth it
         try:
             return not cv2.VideoCapture(output).isOpened()
         except Exception as e:
@@ -123,9 +120,9 @@ class VideoCompression:
     def sizeof_fmt(self, num, suffix='B'):
         for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
             if abs(num) < 1024.0:
-                return "%3.1f%s%s" % (num, unit, suffix)
+                return "%3.3f%s%s" % (num, unit, suffix)
             num /= 1024.0
-        return "%.1f%s%s" % (num, 'Yi', suffix)
+        return "%.3f%s%s" % (num, 'Yi', suffix)
 
     def compress_dir(self, rootdir):
         self.start_size += self.size_of_dir(rootdir)
@@ -148,7 +145,7 @@ class VideoCompression:
             print("\n--------------------------------------------------------------")
             print(f"> Compressing Video: ({i}/{len(files)}) {Style.BRIGHT + Fore.CYAN + filename} {Style.RESET_ALL}")
             print(f"Size: {Style.BRIGHT + Fore.CYAN}{self.sizeof_fmt(file_size)}")
-            print(f"Time: {Style.BRIGHT + Fore.CYAN} {self.convert_seconds(self.get_video_length(filename))}")
+            print(f"Time: {Style.BRIGHT + Fore.CYAN}{self.convert_seconds(self.get_video_length(filename))}")
 
             self.current_output_file = output_name
 
@@ -165,7 +162,7 @@ class VideoCompression:
             compressed_size = os.path.getsize(output_name)
             compression_rate = (compressed_size / file_size) * 100
 
-            print(f"Compression: {Style.BRIGHT + Fore.CYAN }{compression_rate:.2f}% {Style.RESET_ALL}: {self.sizeof_fmt(compressed_size)}mb")
+            print(f"Compression: {Style.BRIGHT + Fore.CYAN }{compression_rate:.2f}% {Style.RESET_ALL}: {self.sizeof_fmt(file_size)} => {self.sizeof_fmt(compressed_size)}")
 
             file_corrupted = self.check_corrupted(output_name)
             if compression_rate < 100 and not file_corrupted:
@@ -205,7 +202,7 @@ if __name__ == "__main__":
     ap.add_argument("-r", "--recursive", default=True, type=str2bool,
                     help="Recursively load videos")
 
-    ap.add_argument("-ffmpeg","--ffmpeg_bin_path", type=str,
+    ap.add_argument("-ffmpeg", "--ffmpeg_bin_path", type=str,
                     help="Path containing ffmpeg binaries")
 
     ap.add_argument("-c", "--crf", default=30, type=int,
