@@ -8,6 +8,7 @@ from tqdm import tqdm
 import subprocess
 import argparse
 
+import platform
 import cv2
 
 from colorama import init, Fore, Style
@@ -26,12 +27,21 @@ class VideoCompression:
             "crf": 30,
             "vcodec": "libx264"  # Was faster than x265 on my machine
         }
+        
+       
+        if platform.system() == "Linux":
+            prop_defaults["ffmpeg_bin_path"] = "/usr/bin/"
 
         print("===============OPTIONS===============")
         for (prop, default) in prop_defaults.items():
-            print(f"{prop}: {kwargs.get(prop, default)}")
-            setattr(self, prop, kwargs.get(prop, default))
+            value = kwargs.get(prop, default) if kwargs.get(prop) != None else default
+            print(f"{prop}: {value}")
+            setattr(self, prop, value)
         print("===============OPTIONS===============\n\n")
+        
+        
+        #if platform.system() == "Linux":
+            #prop_defaults["ffmpeg_bin_path"] = "/usr/bin/"
 
         self.g_t1 = time.time()
         self.start_size = 0
@@ -49,9 +59,9 @@ class VideoCompression:
 
         self.printDebug(f"> Running Command: {ff.cmd}")
         ff.run()
-        # TODO: tqdm barggit
-        print(Fore.GREEN + Style.BRIGHT+'[!] Finished compressing Video [!]')
 
+        print(Fore.GREEN + Style.BRIGHT+'[!] Finished compressing Video [!]')
+   
     def printDebug(self, text):
         if self.debug:
             print(text)
@@ -76,11 +86,10 @@ class VideoCompression:
         if self.start_size != 0:
             start_size_mb = self.start_size / 1000000
             end_size = sum([self.size_of_dir(dir) for dir in self.compressed_directories])
-            end_size_mb = end_size / 1000000
 
             total_compression_rate = (end_size / self.start_size) * 100
             print(f"Reduced to: {Style.BRIGHT + Fore.CYAN}{total_compression_rate:.2f}%{Style.RESET_ALL} of original size | "
-                  f"[{start_size_mb}mb => {end_size_mb}mb]")
+                  f"[{start_size_mb}mb => {self.sizeof_fmt(end_size)}mb]")
 
         print("Exit")
         print("--------------------------------------------------------------")
@@ -89,7 +98,12 @@ class VideoCompression:
         return [filename for filename in glob.iglob(rootdir + '**/**', recursive=self.recursive) if os.path.splitext(filename)[1] == ".mp4" and "compressed" not in filename]
 
     def get_video_length(self, filename):
-        cmds = [os.path.join(self.ffmpeg_bin_path, "ffprobe.exe"), "-v", "error", "-show_entries",
+        if platform.system() == "Linux":
+            ffprobe_path = os.path.join(self.ffmpeg_bin_path, "ffprobe")
+        else:
+             ffprobe_path = os.path.join(self.ffmpeg_bin_path, "ffprobe.exe")
+        
+        cmds = [ffprobe_path, "-v", "error", "-show_entries",
                                  "format=duration", "-of",
                                  "default=noprint_wrappers=1:nokey=1", filename]
         result = subprocess.run(cmds, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -121,7 +135,6 @@ class VideoCompression:
         print(f"> Loaded {Style.BRIGHT + Fore.CYAN }'{len(files)}' {Style.RESET_ALL}video files in {Style.BRIGHT + Fore.CYAN }{rootdir}")
 
         bar = tqdm(total=len(files))
-
         i = 1
         for filename in files:
             file_type = os.path.splitext(filename)[1]
@@ -150,10 +163,9 @@ class VideoCompression:
             print(f"Time elapsed: {self.convert_seconds(t2-t1)}")
 
             compressed_size = os.path.getsize(output_name)
-            compressed_size_mb = compressed_size/1000000
             compression_rate = (compressed_size / file_size) * 100
 
-            print(f"Compression: {Style.BRIGHT + Fore.CYAN }{compression_rate:.2f}% {Style.RESET_ALL}: {compressed_size_mb}mb")
+            print(f"Compression: {Style.BRIGHT + Fore.CYAN }{compression_rate:.2f}% {Style.RESET_ALL}: {self.sizeof_fmt(compressed_size)}mb")
 
             file_corrupted = self.check_corrupted(output_name)
             if compression_rate < 100 and not file_corrupted:
@@ -193,7 +205,7 @@ if __name__ == "__main__":
     ap.add_argument("-r", "--recursive", default=True, type=str2bool,
                     help="Recursively load videos")
 
-    ap.add_argument("-ffmpeg","--ffmpeg_bin_path", default=r"C:\ffmpeg\bin", type=str,
+    ap.add_argument("-ffmpeg","--ffmpeg_bin_path", type=str,
                     help="Path containing ffmpeg binaries")
 
     ap.add_argument("-c", "--crf", default=30, type=int,
@@ -203,5 +215,6 @@ if __name__ == "__main__":
                     help="vcodec value for ffmpeg")
 
     args = vars(ap.parse_args())
+    print(args)
     vc = VideoCompression(**args)
     vc.compress_dir(args["folder"])
