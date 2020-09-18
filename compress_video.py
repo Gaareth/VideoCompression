@@ -8,6 +8,8 @@ from tqdm import tqdm
 import subprocess
 import argparse
 
+import cv2
+
 from colorama import init, Fore, Style
 init(autoreset=True)
 
@@ -47,7 +49,7 @@ class VideoCompression:
 
         self.printDebug(f"> Running Command: {ff.cmd}")
         ff.run()
-
+        # TODO: tqdm barggit
         print(Fore.GREEN + Style.BRIGHT+'[!] Finished compressing Video [!]')
 
     def printDebug(self, text):
@@ -96,6 +98,21 @@ class VideoCompression:
     def size_of_dir(self, rootdir):
         return sum([os.stat(filename).st_size for filename in [filename for filename in glob.iglob(rootdir + '**/**', recursive=self.recursive) if os.path.splitext(filename)[1] == ".mp4"]])
 
+    def check_corrupted(self, output):
+        try:
+            return not cv2.VideoCapture(output).isOpened()
+        except Exception as e:
+            print(e)
+            return True
+
+    # https://stackoverflow.com/a/1094933
+    def sizeof_fmt(self, num, suffix='B'):
+        for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
+            if abs(num) < 1024.0:
+                return "%3.1f%s%s" % (num, unit, suffix)
+            num /= 1024.0
+        return "%.1f%s%s" % (num, 'Yi', suffix)
+
     def compress_dir(self, rootdir):
         self.start_size += self.size_of_dir(rootdir)
         self.compressed_directories.append(rootdir)
@@ -105,7 +122,8 @@ class VideoCompression:
 
         bar = tqdm(total=len(files))
 
-        for i, filename in enumerate(files):
+        i = 1
+        for filename in files:
             file_type = os.path.splitext(filename)[1]
             output_name = filename.split(file_type)[0] + "_compressed" + file_type
 
@@ -113,11 +131,12 @@ class VideoCompression:
                 continue
 
             file_size = os.path.getsize(filename)
-            file_size_mb = (file_size/1000000)
 
             print("\n--------------------------------------------------------------")
-            print(f"> Compressing Video: ({i+1}/{len(filename)}) {Style.BRIGHT + Fore.CYAN + filename} "
-                  f"{Style.RESET_ALL}: {file_size_mb}mb : {self.convert_seconds(self.get_video_length(filename))}")
+            print(f"> Compressing Video: ({i}/{len(files)}) {Style.BRIGHT + Fore.CYAN + filename} {Style.RESET_ALL}")
+            print(f"Size: {Style.BRIGHT + Fore.CYAN}{self.sizeof_fmt(file_size)}")
+            print(f"Time: {Style.BRIGHT + Fore.CYAN} {self.convert_seconds(self.get_video_length(filename))}")
+
             self.current_output_file = output_name
 
             t1 = time.time()
@@ -135,15 +154,22 @@ class VideoCompression:
             compression_rate = (compressed_size / file_size) * 100
 
             print(f"Compression: {Style.BRIGHT + Fore.CYAN }{compression_rate:.2f}% {Style.RESET_ALL}: {compressed_size_mb}mb")
-            os.remove(filename)
-            print(Fore.GREEN + f"> Removed big ass file: {filename}")
 
+            file_corrupted = self.check_corrupted(output_name)
+            if compression_rate < 100 and not file_corrupted:
+                os.remove(filename)
+                print(Fore.GREEN + f"> Removed big ass file: {filename}")
+            else:
+                os.remove(output_name)
+                print(Fore.RED + f"> Compressed made file bigger or not usable")
+                print(Fore.RED + f"> Removed compressed file")
+                continue
             print("--------------------------------------------------------------\n")
 
-            self.videos_compressed+=1
+            self.videos_compressed += 1
 
             bar.update(1)
-
+            i += 1
 
 
 def str2bool(v):
