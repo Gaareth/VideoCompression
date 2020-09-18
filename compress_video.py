@@ -84,7 +84,7 @@ class VideoCompression:
             end_size = sum([self.size_of_dir(dir) for dir in self.compressed_directories])
 
             total_compression_rate = (end_size / self.start_size) * 100
-            print(f"Directory educed to: {Style.BRIGHT + Fore.CYAN}{total_compression_rate:.2f}%{Style.RESET_ALL} of original size | "
+            print(f"Directory size reduced to: {Style.BRIGHT + Fore.CYAN}{total_compression_rate:.2f}%{Style.RESET_ALL} of original size | "
                   f"[{self.sizeof_fmt(self.start_size)} => {self.sizeof_fmt(end_size)}]")
 
         print("Exit")
