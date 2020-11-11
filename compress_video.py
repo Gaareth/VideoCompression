@@ -1,5 +1,7 @@
 import os
 import ffmpy
+import sys
+import shlex
 import glob
 import time
 import datetime
@@ -14,6 +16,7 @@ import cv2
 from colorama import init, Fore, Style
 init(autoreset=True)
 
+# TODO: file that keeps track of compressed files instead of adding 'compressed' to files
 
 class VideoCompression:
 
@@ -45,6 +48,8 @@ class VideoCompression:
         self.compressed_directories = []
         self.videos_compressed = 0
         self.current_output_file = ""
+        self.supported_formats = [".mp4", ".wmv"]
+        # TODO: custom format option
 
     def compress_video(self, input_name, output_name):
         inp = {input_name: None}
@@ -52,13 +57,22 @@ class VideoCompression:
 
         options = ["-loglevel quiet", "-stats"] if not self.debug else []
 
+        ffmpeg_executable = os.path.join(self.ffmpeg_bin_path, "ffmpeg")
+        cmd = f"\"{ffmpeg_executable}\" -i \"{input_name}\" -vcodec {self.vcodec} -crf {self.crf} \"{output_name}\" {' '.join(options)}"
+        #cmd = shlex.split(cmd)
         ff = ffmpy.FFmpeg(inputs=inp, outputs=outp, executable=os.path.join(self.ffmpeg_bin_path, "ffmpeg"), global_options=options)
+        #print(cmd)
 
-        self.printDebug(f"> Running Command: {ff.cmd}")
+        self.printDebug(f"> Running Command: {cmd}")
+        #process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        #for line in iter(process.stdout.readline, ''):  # replace '' with b'' for Python 3
+            #sys.stdout.write("XD"+line)
+            #sys.stdout.write(line)
+
         ff.run()
         # TODO: tqdm bar
         print(Fore.GREEN + Style.BRIGHT+'[!] Finished compressing Video [!]')
-   
+
     def printDebug(self, text):
         if self.debug:
             print(text)
@@ -91,7 +105,7 @@ class VideoCompression:
         print("--------------------------------------------------------------")
 
     def load_files(self, rootdir):
-        return [filename for filename in glob.iglob(rootdir + '**/**', recursive=self.recursive) if os.path.splitext(filename)[1] == ".mp4" and "compressed" not in filename]
+        return [filename for filename in glob.iglob(rootdir + '**/**', recursive=self.recursive) if os.path.splitext(filename)[1].lower() in self.supported_formats and "compressed" not in filename]
 
     def get_video_length(self, filename):
         if platform.system() == "Linux":
@@ -106,10 +120,10 @@ class VideoCompression:
         return float(result.stdout)
 
     def size_of_dir(self, rootdir):
-        return sum([os.stat(filename).st_size for filename in [filename for filename in glob.iglob(rootdir + '**/**', recursive=self.recursive) if os.path.splitext(filename)[1] == ".mp4"]])
+        return sum([os.stat(filename).st_size for filename in [filename for filename in glob.iglob(rootdir + '**/**', recursive=self.recursive) if os.path.splitext(filename)[1].lower() in self.supported_formats]])
 
     def check_corrupted(self, output):
-        # maybe use ffmpeg in the future but now the time is not worth it
+        # maybe use ffmpeg in the future but for now time is not worth it
         try:
             return not cv2.VideoCapture(output).isOpened()
         except Exception as e:
@@ -137,7 +151,7 @@ class VideoCompression:
             file_type = os.path.splitext(filename)[1]
             output_name = filename.split(file_type)[0] + "_compressed" + file_type
 
-            if file_type != ".mp4" or os.path.exists(output_name) or "compressed" in filename:
+            if file_type.lower() not in self.supported_formats or os.path.exists(output_name) or "compressed" in filename:
                 continue
 
             file_size = os.path.getsize(filename)
@@ -167,7 +181,7 @@ class VideoCompression:
             file_corrupted = self.check_corrupted(output_name)
             if compression_rate < 100 and not file_corrupted:
                 os.remove(filename)
-                print(Fore.GREEN + f"> Removed big ass file: {filename}")
+                self.printDebug(Fore.GREEN + f"> Removed big ass file: {filename}")
             else:
                 os.remove(output_name)
                 print(Fore.RED + f"> Compressed made file bigger or not usable")
